@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marginalia - Cloud-Powered Book Journal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Marked.js Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        journal: ['Georgia', 'serif'],
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #faf6f0;
+            background-image: radial-gradient(#e5dcd3 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e5dcd3; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #d1c4b7; }
+
+        .markdown-body p { margin-bottom: 0.5rem; }
+        .markdown-body p:last-child { margin-bottom: 0; }
+        .markdown-body strong { font-weight: 700; color: #1c1917; }
+        .markdown-body em { font-style: italic; }
+        .markdown-body ul { list-style-type: disc; margin-left: 1.25rem; margin-bottom: 0.5rem; }
+        .markdown-body ol { list-style-type: decimal; margin-left: 1.25rem; margin-bottom: 0.5rem; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { font-family: Georgia, serif; font-weight: bold; color: #1c1917; margin-top: 0.5rem; margin-bottom: 0.25rem; }
+        .markdown-body code { background-color: #f1ece4; padding: 0.1rem 0.35rem; border-radius: 0.25rem; font-size: 0.85em; font-family: monospace; }
+        .markdown-body blockquote { border-left: 3px solid #d1c4b7; padding-left: 0.75rem; font-style: italic; color: #57534e; margin: 0.5rem 0; }
+    </style>
+</head>
+<body class="text-stone-800 font-sans min-h-screen pb-12">
+
+    <!-- Header -->
+    <header class="max-w-7xl mx-auto pt-8 px-6 flex flex-col md:flex-row justify-between items-baseline border-b border-stone-200 pb-4 mb-8">
+        <div>
+            <h1 class="font-journal text-3xl font-bold tracking-wide text-stone-900">Marginalia</h1>
+            <p class="text-stone-500 italic text-xs mt-0.5">Living book repos with cloud-hosted media.</p>
+        </div>
+        <button onclick="openNewBookModal()" class="mt-4 md:mt-0 bg-stone-800 hover:bg-stone-900 text-stone-100 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-lg transition-colors shadow-sm">
+            + Create Book Repo
+        </button>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <main class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Shelf (4 Cols) -->
+        <section class="lg:col-span-4 space-y-4">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-stone-400 mb-2">Your Book Folders</h2>
+            <div id="bookShelf" class="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-2"></div>
+        </section>
+
+        <!-- Active Log (8 Cols) -->
+        <section class="lg:col-span-8">
+            <div id="activeJournalWorkspace" class="bg-white/90 backdrop-blur-sm p-6 md:p-8 rounded-2xl shadow-sm border border-stone-200/80 min-h-[60vh] flex flex-col justify-between">
+                <div class="text-center my-auto py-12">
+                    <p class="font-journal italic text-stone-400">Select a book folder from the shelf to open its chronicle.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL: Create New Book -->
+    <div id="newBookModal" class="hidden fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-stone-200">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-journal text-xl font-bold text-stone-900">Initialize Book Repository</h3>
+                <button onclick="closeNewBookModal()" class="text-stone-400 hover:text-stone-600">✕</button>
+            </div>
+            <form id="bookForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Book Title</label>
+                    <input type="text" id="title" required class="w-full bg-stone-50 border border-stone-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-stone-400 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Author</label>
+                    <input type="text" id="author" required class="w-full bg-stone-50 border border-stone-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-stone-400 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Genre</label>
+                    <input type="text" id="genre" required placeholder="e.g., Philosophy, Fiction" class="w-full bg-stone-50 border border-stone-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-stone-400 text-sm">
+                </div>
+                <button type="submit" class="w-full bg-stone-800 hover:bg-stone-900 text-stone-100 font-medium py-2.5 rounded-lg transition-colors text-sm shadow-sm">
+                    Create Folder
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Engine -->
+    <script>
+        // ----------------------------------------------------
+        // CLOUDINARY CONFIGURATION (Replace with your details)
+        // ----------------------------------------------------
+        const CLOUD_NAME = 'swpuwpzs';
+        const UPLOAD_PRESET = 'journal_preset';
+
+        marked.use({ breaks: true, gfm: true });
+
+        let library = JSON.parse(localStorage.getItem('marginalia_repo')) || [];
+        let activeBookId = localStorage.getItem('marginalia_active_id') || null;
+
+        const bookForm = document.getElementById('bookForm');
+        const bookShelf = document.getElementById('bookShelf');
+        const workspace = document.getElementById('activeJournalWorkspace');
+        const modal = document.getElementById('newBookModal');
+
+        function openNewBookModal() { modal.classList.remove('hidden'); }
+        function closeNewBookModal() { modal.classList.add('hidden'); bookForm.reset(); }
+
+        bookForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newBook = {
+                id: 'book_' + Date.now(),
+                title: document.getElementById('title').value,
+                author: document.getElementById('author').value,
+                genre: document.getElementById('genre').value.trim(),
+                entries: []
+            };
+            library.push(newBook);
+            activeBookId = newBook.id;
+            saveAndRender();
+            closeNewBookModal();
+        });
+
+        // Directly upload media file to Cloudinary API
+        async function uploadFileToCloudinary(file) {
+            const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', UPLOAD_PRESET);
+
+            const response = await fetch(url, { method: 'POST', body: formData });
+            if (!response.ok) {
+                throw new Error('Cloud upload failed. Please check your Cloud Name & Upload Preset.');
+            }
+            const data = await response.json();
+
+            let mediaType = 'image';
+            if (data.resource_type === 'video') mediaType = 'video';
+            else if (data.format === 'pdf' || file.type === 'application/pdf') mediaType = 'pdf';
+
+            return {
+                url: data.secure_url,
+                kind: mediaType,
+                name: file.name
+            };
+        }
+
+        async function addEntryToActiveBook(e) {
+            e.preventDefault();
+            const text = document.getElementById('entryText').value;
+            const type = document.getElementById('entryType').value;
+            const fileInput = document.getElementById('entryMedia');
+            const submitBtn = document.getElementById('submitEntryBtn');
+
+            if (!text.trim() && fileInput.files.length === 0) return;
+
+            let mediaAttachment = null;
+
+            try {
+                if (fileInput.files.length > 0) {
+                    if(CLOUD_NAME === 'YOUR_CLOUD_NAME_HERE') {
+                        alert('Please set your Cloudinary Cloud Name and Upload Preset in the script settings first!');
+                        return;
+                    }
+
+                    submitBtn.innerText = 'Uploading to Cloud...';
+                    submitBtn.disabled = true;
+
+                    mediaAttachment = await uploadFileToCloudinary(fileInput.files[0]);
+                }
+
+                const now = new Date();
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                
+                const timestamp = {
+                    day: days[now.getDay()],
+                    date: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                    time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+                };
+
+                const newEntry = {
+                    id: 'entry_' + Date.now(),
+                    text: text,
+                    type: type,
+                    media: mediaAttachment,
+                    timestamp: timestamp
+                };
+
+                const book = library.find(b => b.id === activeBookId);
+                if (book) {
+                    book.entries.unshift(newEntry);
+                    saveAndRender();
+                }
+            } catch (error) {
+                alert(error.message);
+            } finally {
+                submitBtn.innerText = 'Save Entry';
+                submitBtn.disabled = false;
+            }
+        }
+
+        function toggleEditEntry(entryId) {
+            const displayDiv = document.getElementById(`text-${entryId}`);
+            const editArea = document.getElementById(`edit-container-${entryId}`);
+            if (editArea.classList.contains('hidden')) {
+                displayDiv.classList.add('hidden');
+                editArea.classList.remove('hidden');
+            } else {
+                displayDiv.classList.remove('hidden');
+                editArea.classList.add('hidden');
+            }
+        }
+
+        function saveEditEntry(entryId) {
+            const newText = document.getElementById(`input-${entryId}`).value;
+            const book = library.find(b => b.id === activeBookId);
+            if (book) {
+                const entry = book.entries.find(e => e.id === entryId);
+                if (entry) {
+                    entry.text = newText;
+                    saveAndRender();
+                }
+            }
+        }
+
+        function deleteBook(id, e) {
+            e.stopPropagation();
+            if (confirm("Delete this book folder and all attached notes and media?")) {
+                library = library.filter(b => b.id !== id);
+                if (activeBookId === id) activeBookId = library.length > 0 ? library[0].id : null;
+                saveAndRender();
+            }
+        }
+
+        function deleteEntry(entryId) {
+            const book = library.find(b => b.id === activeBookId);
+            if (book) {
+                book.entries = book.entries.filter(e => e.id !== entryId);
+                saveAndRender();
+            }
+        }
+
+        function saveAndRender() {
+            localStorage.setItem('marginalia_repo', JSON.stringify(library));
+            localStorage.setItem('marginalia_active_id', activeBookId);
+            renderShelf();
+            renderWorkspace();
+        }
+
+        function renderShelf() {
+            bookShelf.innerHTML = '';
+            if (library.length === 0) {
+                bookShelf.innerHTML = `<p class="text-stone-400 italic text-sm font-journal p-4">Your shelf is empty.</p>`;
+                return;
+            }
+
+            library.forEach(book => {
+                const isActive = book.id === activeBookId;
+                const folderBtn = document.createElement('div');
+                folderBtn.className = `group w-full text-left p-4 rounded-xl border transition-all cursor-pointer flex justify-between items-start ${
+                    isActive 
+                    ? 'bg-white border-stone-300 shadow-sm ring-1 ring-stone-200' 
+                    : 'bg-stone-100/60 border-stone-200/60 hover:bg-white hover:border-stone-300'
+                }`;
+                folderBtn.onclick = () => { activeBookId = book.id; saveAndRender(); };
+
+                folderBtn.innerHTML = `
+                    <div class="truncate pr-2">
+                        <span class="text-[9px] uppercase tracking-wider font-bold text-stone-400 block mb-0.5">${book.genre}</span>
+                        <h4 class="font-journal font-bold text-stone-900 truncate text-base">${book.title}</h4>
+                        <p class="text-xs text-stone-500 truncate">by ${book.author}</p>
+                        <span class="inline-block mt-2 text-[10px] bg-stone-200/60 text-stone-600 px-1.5 py-0.5 rounded">
+                            ${book.entries.length} fragment${book.entries.length === 1 ? '' : 's'}
+                        </span>
+                    </div>
+                    <button onclick="deleteBook('${book.id}', event)" class="text-stone-300 hover:text-red-600 text-xs p-1 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                `;
+                bookShelf.appendChild(folderBtn);
+            });
+        }
+
+        function renderMediaHTML(media) {
+            if (!media) return '';
+
+            if (media.kind === 'image') {
+                return `
+                    <div class="mt-3">
+                        <a href="${media.url}" target="_blank">
+                            <img src="${media.url}" alt="${media.name}" class="rounded-lg max-h-96 w-auto border border-stone-200 shadow-sm hover:opacity-95 transition" />
+                        </a>
+                    </div>
+                `;
+            }
+
+            if (media.kind === 'video') {
+                return `
+                    <div class="mt-3">
+                        <video controls src="${media.url}" class="rounded-lg max-h-96 w-full border border-stone-200 shadow-sm"></video>
+                    </div>
+                `;
+            }
+
+            if (media.kind === 'pdf') {
+                return `
+                    <div class="mt-3 border border-stone-200 rounded-xl p-3 bg-stone-50/80">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-semibold text-stone-700 flex items-center gap-1">📄 ${media.name}</span>
+                            <a href="${media.url}" target="_blank" download="${media.name}" class="text-xs text-amber-800 hover:underline font-bold">Open / Download PDF</a>
+                        </div>
+                        <iframe src="${media.url}" class="w-full h-72 rounded-lg border border-stone-200 bg-white"></iframe>
+                    </div>
+                `;
+            }
+
+            return '';
+        }
+
+        function renderWorkspace() {
+            const book = library.find(b => b.id === activeBookId);
+            if (!book) {
+                workspace.innerHTML = `
+                    <div class="text-center my-auto py-12">
+                        <p class="font-journal italic text-stone-400">Select a book folder from the shelf to open its chronicle.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            workspace.innerHTML = `
+                <div>
+                    <div class="border-b border-stone-200 pb-4 mb-6">
+                        <span class="text-xs uppercase font-bold tracking-widest text-stone-400">${book.genre}</span>
+                        <h2 class="font-journal text-3xl font-bold text-stone-900 mt-1">${book.title}</h2>
+                        <p class="text-sm text-stone-600">Archived thoughts on the works of <span class="font-medium text-stone-800">${book.author}</span></p>
+                    </div>
+
+                    <form id="entryForm" onsubmit="addEntryToActiveBook(event)" class="bg-stone-50 border border-stone-200/80 p-4 rounded-xl mb-8 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-semibold uppercase tracking-wider text-stone-500">Append Insight (Markdown Enabled)</label>
+                            <select id="entryType" class="text-xs bg-white border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-stone-400">
+                                <option value="quote">Quote / Line</option>
+                                <option value="thought">Personal Review / Reflection</option>
+                            </select>
+                        </div>
+
+                        <textarea id="entryText" rows="4" placeholder="Supports Markdown (*italic*, **bold**, - lists, # headings)..." class="w-full bg-white border border-stone-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-stone-400 text-sm font-sans"></textarea>
+                        
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-1">
+                            <div>
+                                <label class="block text-[10px] uppercase font-bold text-stone-400 mb-1">Attach Media (Cloud Upload)</label>
+                                <input type="file" id="entryMedia" accept="image/*,video/*,application/pdf" class="text-xs text-stone-500 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-stone-200 file:text-stone-700 hover:file:bg-stone-300">
+                            </div>
+                            <button id="submitEntryBtn" type="submit" class="bg-stone-800 hover:bg-stone-900 text-stone-100 text-xs font-semibold px-4 py-2 rounded-md transition-colors shadow-sm self-end">
+                                Save Entry
+                            </button>
+                        </div>
+                    </form>
+
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-stone-400 mb-4">Chronicle Timeline</h3>
+                    <div id="timelineContainer" class="space-y-6 relative before:absolute before:inset-y-0 before:left-3 before:w-0.5 before:bg-stone-200/60"></div>
+                </div>
+            `;
+
+            const timeline = document.getElementById('timelineContainer');
+            if (book.entries.length === 0) {
+                timeline.innerHTML = `<p class="font-journal italic text-stone-400 text-sm pl-8 py-4">No lines captured yet. Use the editor above to commit your first thought.</p>`;
+                return;
+            }
+
+            book.entries.forEach(entry => {
+                const entryCard = document.createElement('div');
+                entryCard.className = "relative pl-8 group";
+                
+                const knotColor = entry.type === 'quote' ? 'bg-amber-600' : 'bg-stone-700';
+                const parsedContent = marked.parse(entry.text || '');
+
+                entryCard.innerHTML = `
+                    <div class="absolute left-1.5 top-1.5 w-3.5 h-3.5 rounded-full ${knotColor} border-4 border-white ring-1 ring-stone-300"></div>
+                    
+                    <div class="bg-white/40 group-hover:bg-white p-4 rounded-xl border border-stone-200/60 transition-colors">
+                        <div class="flex justify-between items-baseline mb-2">
+                            <span class="text-[10px] text-stone-400 font-medium">
+                                <span class="font-bold text-stone-600">${entry.timestamp.day}</span>, ${entry.timestamp.date} @ ${entry.timestamp.time}
+                            </span>
+                            <div class="space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onclick="toggleEditEntry('${entry.id}')" class="text-stone-400 hover:text-stone-700 text-xs">Edit</button>
+                                <button onclick="deleteEntry('${entry.id}')" class="text-stone-400 hover:text-red-600 text-xs">✕</button>
+                            </div>
+                        </div>
+
+                        <div id="text-${entry.id}">
+                            <div class="markdown-body text-sm ${entry.type === 'quote' ? 'font-journal italic border-l-2 border-amber-600/40 pl-3 py-0.5' : 'text-stone-700'}">
+                                ${parsedContent}
+                            </div>
+                            ${renderMediaHTML(entry.media)}
+                        </div>
+
+                        <div id="edit-container-${entry.id}" class="hidden mt-2 space-y-2">
+                            <textarea id="input-${entry.id}" rows="3" class="w-full bg-stone-50 border border-stone-200 rounded-lg p-2 text-sm font-sans focus:outline-none focus:ring-1 focus:ring-stone-400">${entry.text}</textarea>
+                            <div class="flex justify-end gap-2">
+                                <button onclick="toggleEditEntry('${entry.id}')" class="px-2 py-1 text-xs bg-stone-100 text-stone-600 rounded">Cancel</button>
+                                <button onclick="saveEditEntry('${entry.id}')" class="px-2 py-1 text-xs bg-stone-800 text-white rounded">Save changes</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                timeline.appendChild(entryCard);
+            });
+        }
+
+        renderShelf();
+        renderWorkspace();
+    </script>
+</body>
+</html>
