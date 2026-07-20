@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Marginalia - Cloud-Powered Book Journal</title>
+    <title>Between the Lines - Living Book Journal</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Marked.js Markdown Parser -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- QRCode.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -47,12 +49,18 @@
     <!-- Header -->
     <header class="max-w-7xl mx-auto pt-8 px-6 flex flex-col md:flex-row justify-between items-baseline border-b border-stone-200 pb-4 mb-8">
         <div>
-            <h1 class="font-journal text-3xl font-bold tracking-wide text-stone-900">Marginalia</h1>
-            <p class="text-stone-500 italic text-xs mt-0.5">Living book repos with cloud-hosted media.</p>
+            <h1 class="font-journal text-3xl font-bold tracking-wide text-stone-900">Between the Lines</h1>
+            <p class="text-stone-500 italic text-xs mt-0.5">Living book repos & cloud-hosted reading archive.</p>
         </div>
-        <button onclick="openNewBookModal()" class="mt-4 md:mt-0 bg-stone-800 hover:bg-stone-900 text-stone-100 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-lg transition-colors shadow-sm">
-            + Create Book Repo
-        </button>
+        <div class="flex items-center gap-3 mt-4 md:mt-0">
+            <!-- QR Code Button -->
+            <button onclick="openQrModal()" class="bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold uppercase tracking-wider px-3.5 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
+                <span>📱</span> Scan for Mobile
+            </button>
+            <button onclick="openNewBookModal()" class="bg-stone-800 hover:bg-stone-900 text-stone-100 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-lg transition-colors shadow-sm">
+                + Create Book Repo
+            </button>
+        </div>
     </header>
 
     <!-- Main Workspace Layout -->
@@ -73,6 +81,21 @@
             </div>
         </section>
     </main>
+
+    <!-- MODAL: QR Code Scanner -->
+    <div id="qrModal" class="hidden fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-stone-200 text-center">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-journal text-lg font-bold text-stone-900">Scan to Mobile</h3>
+                <button onclick="closeQrModal()" class="text-stone-400 hover:text-stone-600">✕</button>
+            </div>
+            <p class="text-xs text-stone-500 mb-4">Scan this QR code with your phone camera to open this journal instantly on mobile.</p>
+            <div class="bg-stone-50 p-4 rounded-xl border border-stone-200 inline-block">
+                <div id="qrcode"></div>
+            </div>
+            <p class="text-[10px] text-stone-400 truncate mt-3" id="currentUrlText"></p>
+        </div>
+    </div>
 
     <!-- MODAL: Create New Book -->
     <div id="newBookModal" class="hidden fixed inset-0 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -104,13 +127,14 @@
     <!-- JavaScript Engine -->
     <script>
         // ----------------------------------------------------
-        // CLOUDINARY CONFIGURATION (Replace with your details)
+        // CLOUDINARY CONFIGURATION (Insert your credentials)
         // ----------------------------------------------------
         const CLOUD_NAME = 'swpuwpzs';
         const UPLOAD_PRESET = 'journal_preset';
 
         marked.use({ breaks: true, gfm: true });
 
+        // Preserves previous saves by reusing the same key
         let library = JSON.parse(localStorage.getItem('marginalia_repo')) || [];
         let activeBookId = localStorage.getItem('marginalia_active_id') || null;
 
@@ -118,9 +142,30 @@
         const bookShelf = document.getElementById('bookShelf');
         const workspace = document.getElementById('activeJournalWorkspace');
         const modal = document.getElementById('newBookModal');
+        const qrModal = document.getElementById('qrModal');
 
         function openNewBookModal() { modal.classList.remove('hidden'); }
         function closeNewBookModal() { modal.classList.add('hidden'); bookForm.reset(); }
+
+        // QR Code Modal Generator
+        let qrCodeObj = null;
+        function openQrModal() {
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = '';
+            const currentUrl = window.location.href;
+            document.getElementById('currentUrlText').innerText = currentUrl;
+            
+            qrCodeObj = new QRCode(qrContainer, {
+                text: currentUrl,
+                width: 160,
+                height: 160,
+                colorDark : "#1c1917",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+            qrModal.classList.remove('hidden');
+        }
+        function closeQrModal() { qrModal.classList.add('hidden'); }
 
         bookForm.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -137,7 +182,6 @@
             closeNewBookModal();
         });
 
-        // Directly upload media file to Cloudinary API
         async function uploadFileToCloudinary(file) {
             const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
             const formData = new FormData();
@@ -175,7 +219,7 @@
             try {
                 if (fileInput.files.length > 0) {
                     if(CLOUD_NAME === 'YOUR_CLOUD_NAME_HERE') {
-                        alert('Please set your Cloudinary Cloud Name and Upload Preset in the script settings first!');
+                        alert('Please configure your Cloud Name and Upload Preset in the script settings first!');
                         return;
                     }
 
