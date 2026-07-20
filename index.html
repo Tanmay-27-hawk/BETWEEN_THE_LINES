@@ -52,11 +52,22 @@
             <h1 class="font-journal text-3xl font-bold tracking-wide text-stone-900">Between the Lines</h1>
             <p class="text-stone-500 italic text-xs mt-0.5">Living book repos & cloud-hosted reading archive.</p>
         </div>
-        <div class="flex items-center gap-3 mt-4 md:mt-0">
-            <!-- QR Code Button -->
-            <button onclick="openQrModal()" class="bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold uppercase tracking-wider px-3.5 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
-                <span>📱</span> Scan for Mobile
-            </button>
+       <div class="flex items-center gap-3 mt-4 md:mt-0">
+    <!-- Backup Export Button -->
+    <button onclick="exportData()" class="bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold uppercase tracking-wider px-3 py-2 rounded-lg transition-colors shadow-sm">
+        📥 Export Data
+    </button>
+    
+    <!-- Backup Import Button -->
+    <label class="bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold uppercase tracking-wider px-3 py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
+        📤 Import Data
+        <input type="file" onchange="importData(event)" accept=".json" class="hidden">
+    </label>
+
+    <!-- QR Code Button -->
+    <button onclick="openQrModal()" class="bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold uppercase tracking-wider px-3.5 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
+        <span>📱</span> Scan for Mobile
+    </button>
             <button onclick="openNewBookModal()" class="bg-stone-800 hover:bg-stone-900 text-stone-100 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-lg transition-colors shadow-sm">
                 + Create Book Repo
             </button>
