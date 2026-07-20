@@ -52,24 +52,26 @@
             <h1 class="font-journal text-3xl font-bold tracking-wide text-stone-900">Between the Lines</h1>
             <p class="text-stone-500 italic text-xs mt-0.5">Living book repos & cloud-hosted reading archive.</p>
         </div>
-       <div class="flex items-center gap-3 mt-4 md:mt-0">
-    <!-- Backup Export Button -->
-    <button onclick="exportData()" class="bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold uppercase tracking-wider px-3 py-2 rounded-lg transition-colors shadow-sm">
-        📥 Export Data
-    </button>
-    
-    <!-- Backup Import Button -->
-    <label class="bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold uppercase tracking-wider px-3 py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
-        📤 Import Data
-        <input type="file" onchange="importData(event)" accept=".json" class="hidden">
-    </label>
+        <div class="flex flex-wrap items-center gap-2 mt-4 md:mt-0">
+            <!-- Backup Export Button -->
+            <button onclick="exportData()" class="bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold uppercase tracking-wider px-3 py-2 rounded-lg transition-colors shadow-sm">
+                📥 Export Data
+            </button>
+            
+            <!-- Backup Import Button -->
+            <label class="bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold uppercase tracking-wider px-3 py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
+                📤 Import Data
+                <input type="file" onchange="importData(event)" accept=".json" class="hidden">
+            </label>
 
-    <!-- QR Code Button -->
-    <button onclick="openQrModal()" class="bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold uppercase tracking-wider px-3.5 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
-        <span>📱</span> Scan for Mobile
-    </button>
+            <!-- QR Code Button -->
+            <button onclick="openQrModal()" class="bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold uppercase tracking-wider px-3.5 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
+                <span>📱</span> Mobile QR
+            </button>
+
+            <!-- Create Book Button -->
             <button onclick="openNewBookModal()" class="bg-stone-800 hover:bg-stone-900 text-stone-100 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-lg transition-colors shadow-sm">
-                + Create Book Repo
+                + New Book
             </button>
         </div>
     </header>
@@ -140,12 +142,12 @@
         // ----------------------------------------------------
         // CLOUDINARY CONFIGURATION (Insert your credentials)
         // ----------------------------------------------------
-        const CLOUD_NAME = 'swpuwpzs';
-        const UPLOAD_PRESET = 'journal_preset';
+        const CLOUD_NAME = 'YOUR_CLOUD_NAME_HERE';
+        const UPLOAD_PRESET = 'YOUR_UNSIGNED_PRESET_HERE';
 
         marked.use({ breaks: true, gfm: true });
 
-        // Preserves previous saves by reusing the same key
+        // Storage & State Management
         let library = JSON.parse(localStorage.getItem('marginalia_repo')) || [];
         let activeBookId = localStorage.getItem('marginalia_active_id') || null;
 
@@ -158,15 +160,44 @@
         function openNewBookModal() { modal.classList.remove('hidden'); }
         function closeNewBookModal() { modal.classList.add('hidden'); bookForm.reset(); }
 
-        // QR Code Modal Generator
-        let qrCodeObj = null;
+        // Data Transfer Functions
+        function exportData() {
+            const rawData = localStorage.getItem('marginalia_repo') || '[]';
+            const blob = new Blob([rawData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'between_the_lines_backup.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    JSON.parse(e.target.result);
+                    localStorage.setItem('marginalia_repo', e.target.result);
+                    alert('Journal entries restored successfully!');
+                    location.reload();
+                } catch (err) {
+                    alert('Invalid backup file format.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // QR Code Generator
         function openQrModal() {
             const qrContainer = document.getElementById('qrcode');
             qrContainer.innerHTML = '';
             const currentUrl = window.location.href;
             document.getElementById('currentUrlText').innerText = currentUrl;
             
-            qrCodeObj = new QRCode(qrContainer, {
+            new QRCode(qrContainer, {
                 text: currentUrl,
                 width: 160,
                 height: 160,
@@ -201,7 +232,7 @@
 
             const response = await fetch(url, { method: 'POST', body: formData });
             if (!response.ok) {
-                throw new Error('Cloud upload failed. Please check your Cloud Name & Upload Preset.');
+                throw new Error('Cloud upload failed. Please check your Cloud Name & Upload Preset credentials.');
             }
             const data = await response.json();
 
@@ -229,7 +260,7 @@
 
             try {
                 if (fileInput.files.length > 0) {
-                    if(CLOUD_NAME === 'YOUR_CLOUD_NAME_HERE') {
+                    if (CLOUD_NAME === 'YOUR_CLOUD_NAME_HERE') {
                         alert('Please configure your Cloud Name and Upload Preset in the script settings first!');
                         return;
                     }
